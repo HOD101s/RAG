@@ -14,88 +14,68 @@ class ChromaDb:
     """ChromaDB implementation for vector database"""
 
     def __init__(
-        self, 
-        collection_name: str, 
+        self,
+        collection_name: str,
         embedding_model: EmbeddingModel,
-        persist_directory: Optional[str] = "chroma_db"
+        persist_directory: Optional[str] = "chroma_db",
     ):
         """Initialize ChromaDB
 
         Args:
             collection_name (str): Name of the collection
             embedding_model (EmbeddingModel): Embedding model to use
-            persist_directory (Optional[str], optional): Directory to persist the database. Defaults to "chroma_db".
+            persist_directory (Optional[str], optional): Directory to persist the
+            database. Defaults to "chroma_db".
         """
         self.collection_name = collection_name
         self.embedding_model = embedding_model
-        
+
         # Create persist directory if it doesn't exist
         if persist_directory:
             os.makedirs(persist_directory, exist_ok=True)
-        
+
         # Initialize ChromaDB client with persistence
         self.client = chromadb.PersistentClient(
             path=persist_directory,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
-            )
+            settings=Settings(anonymized_telemetry=False, allow_reset=True),
         )
-        
+
         # Get or create collection
         self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"}
+            name=collection_name, metadata={"hnsw:space": "cosine"}
         )
 
-    def add_records(self, documents: List[str], ids: Optional[List[str]] = None) -> None:
-        """Add records to the collection
+    def add_records(
+        self, documents: List[str], ids: Optional[List[str]] = None
+    ) -> None:
+        """Add documents to the vector database.
 
         Args:
-            documents (List[str]): List of documents to add
-            ids (Optional[List[str]], optional): List of IDs for the documents. Defaults to None.
+            documents: List of text documents to add to the database
+            ids: Optional list of IDs for the documents. If not provided, IDs will be
+                generated automatically.
         """
-        # Generate embeddings
-        embeddings = self.embedding_model.get_embeddings(documents)
-        
-        # Generate unique IDs if not provided
         if ids is None:
-            ids = [f"doc_{uuid.uuid4()}" for _ in range(len(documents))]
-        
-        # Add documents to collection
-        self.collection.add(
-            embeddings=embeddings,
-            documents=documents,
-            ids=ids
-        )
+            ids = [str(uuid.uuid4()) for _ in range(len(documents))]
+        self.collection.add(documents=documents, ids=ids)
 
     def query_records(
-        self, query: str, n_results: int = 5
-    ) -> Dict[str, Union[List[List[float]], List[str], List[float]]]:
-        """Query the collection
+        self, query: str, n_results: int = 3
+    ) -> Dict[str, List[Union[str, float]]]:
+        """Query the vector database for similar documents.
 
         Args:
-            query (str): Query string
-            n_results (int, optional): Number of results to return. Defaults to 5.
+            query: The query text to search for
+            n_results: Number of results to return (default: 3)
 
         Returns:
-            Dict[str, Union[List[List[float]], List[str], List[float]]]: Query results
+            Dictionary containing documents and distances
         """
-        # Generate query embedding
-        query_embedding = self.embedding_model.get_embeddings([query])[0]
-        
-        # Query collection
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_results
-        )
-        
-        return results
-    
+        return self.collection.query(query_texts=[query], n_results=n_results)
+
     def reset(self) -> None:
         """Reset the collection"""
         self.client.reset()
         self.collection = self.client.get_or_create_collection(
-            name=self.collection_name,
-            metadata={"hnsw:space": "cosine"}
+            name=self.collection_name, metadata={"hnsw:space": "cosine"}
         )

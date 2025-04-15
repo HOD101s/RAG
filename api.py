@@ -5,8 +5,10 @@ from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
+from data_models.schemas import DataInput, QuestionInput, Response
 from embeddings.sentence_transformer_embeddings import SentenceTransformerEmbedding
 from llm.ollama_llm import OllamaLLM
 from vector_db.chroma_db import ChromaDb
@@ -30,9 +32,11 @@ async def lifespan(app: FastAPI):
     """Lifespan event handler for FastAPI"""
     # Initialize components
     app.state.embedding_model = SentenceTransformerEmbedding()
-    app.state.vector_db = ChromaDb("rag_collection", app.state.embedding_model, persist_directory="chroma_db")
+    app.state.vector_db = ChromaDb(
+        "rag_collection", app.state.embedding_model, persist_directory="chroma_db"
+    )
     app.state.llm = OllamaLLM()
-    
+
     # Pre-populate the database with Star Wars data if it's empty
     try:
         if app.state.vector_db.collection.count() == 0:
@@ -41,7 +45,7 @@ async def lifespan(app: FastAPI):
             print(f"Pre-populated database with {len(star_wars_data)} Star Wars facts")
     except Exception as e:
         print(f"Error pre-populating database: {str(e)}")
-    
+
     yield
 
 
@@ -50,60 +54,54 @@ app = FastAPI(
     title="RAG API",
     description="API for Retrieval-Augmented Generation system",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
+# Create static directory if it doesn't exist
+os.makedirs("static", exist_ok=True)
 
-class DataInput(BaseModel):
-    """Model for data input"""
-    documents: List[str]
-
-
-class QuestionInput(BaseModel):
-    """Model for question input"""
-    question: str
-    num_results: int = 5
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-class Response(BaseModel):
-    """Model for API response"""
-    answer: str
-    context: List[str]
+@app.get("/")
+async def read_root():
+    """Serve the frontend"""
+    return FileResponse("static/index.html")
 
 
-@app.post("/data", status_code=201)
+@app.post("/add_data", response_model=dict)
 async def add_data(data_input: DataInput):
-    """Add documents to the vector database"""
+    """Add data to the RAG system."""
     try:
-        # Add documents to the vector database
-        app.state.vector_db.add_records(data_input.documents)
-        
-        return {"message": f"Added {len(data_input.documents)} documents to the vector database"}
+        app.state.vector_db.add_records(data_input.data)
+        return {
+            "message": (
+                f"Added {len(data_input.data)} documents to the vector database"
+            )
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/question", response_model=Response)
+@app.post("/ask", response_model=Response)
 async def ask_question(question_input: QuestionInput):
-    """Ask a question and get a response"""
+    """Ask a question to the RAG system."""
     try:
         # Query the vector database
         results = app.state.vector_db.query_records(
-            question_input.question, 
-            question_input.num_results
+            question_input.question, question_input.num_results
         )["documents"][0]
-        
+
         # Generate response using the LLM
         response = app.state.llm.generate_response(question_input.question, results)
-        
-        return Response(
-            answer=response,
-            context=results
-        )
+
+        return Response(answer=response, context=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

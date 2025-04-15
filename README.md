@@ -18,6 +18,7 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
 - **LLM Integration**: Uses Ollama for local LLM inference (chosen for its quantized models on macOS)
 - **Modular Design**: Easy to swap components (e.g., different LLMs, embedding models)
 - **REST API**: FastAPI implementation for easy integration
+- **Web Interface**: Simple web UI for interacting with the RAG system
 
 ## Requirements
 
@@ -64,6 +65,23 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
    - Create a text file with your documents (one per line)
    - Create a text file with your questions
    - Update the file paths in `rag.py`
+
+### Web Interface
+
+1. Start the API server:
+   ```bash
+   python api.py
+   ```
+
+2. Open your browser and navigate to:
+   ```
+   http://localhost:8000
+   ```
+
+3. Use the web interface to:
+   - Add documents to the vector database
+   - Ask questions and get responses
+   - View the context used to generate answers
 
 ### REST API
 
@@ -114,6 +132,8 @@ rag/
 │   ├── base_llm.py             # Base class for LLMs
 │   ├── huggingface_llm.py      # HuggingFace implementation
 │   └── ollama_llm.py           # Ollama implementation
+├── static/                     # Static files for web interface
+│   └── index.html              # Web interface
 ├── vector_db/                  # Vector databases
 │   ├── __init__.py
 │   └── chroma_db.py            # ChromaDB implementation
