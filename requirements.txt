@@ -6,6 +6,8 @@ sentencepiece>=0.1.99
 protobuf>=4.25.1
 bitsandbytes==0.42.0
 requests==2.31.0
+PyPDF2>=3.0.0
+python-multipart>=0.0.9
 numpy<2.0.0  # Pin to pre-2.0 version for ChromaDB compatibility
 
 # Linting

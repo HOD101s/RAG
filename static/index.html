@@ -23,6 +23,20 @@
             text-align: center;
             margin: 20px 0;
         }
+        .upload-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .upload-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .upload-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -43,6 +57,22 @@
                             </div>
                             <button type="submit" class="btn btn-primary">Add Documents</button>
                         </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Upload PDF</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="upload-pdf-form">
+                            <div class="mb-3">
+                                <label for="pdf-file" class="form-label">Select PDF File</label>
+                                <input type="file" class="form-control" id="pdf-file" accept=".pdf">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Upload PDF</button>
+                        </form>
+                        <div id="upload-status" class="upload-status"></div>
                     </div>
                 </div>
             </div>
@@ -88,45 +118,89 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const addDocumentsForm = document.getElementById('add-documents-form');
+            const uploadPdfForm = document.getElementById('upload-pdf-form');
             const askQuestionForm = document.getElementById('ask-question-form');
             const loading = document.getElementById('loading');
             const responseContainer = document.getElementById('response-container');
             const answerElement = document.getElementById('answer');
             const contextElement = document.getElementById('context');
+            const uploadStatus = document.getElementById('upload-status');
             
             addDocumentsForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const documentsText = document.getElementById('documents').value;
-                if (!documentsText.trim()) {
+                const documents = documentsText.split('\n').filter(doc => doc.trim());
+                
+                if (documents.length === 0) {
                     alert('Please enter at least one document');
                     return;
                 }
                 
-                const documents = documentsText.split('\n').filter(doc => doc.trim());
-                
                 loading.style.display = 'block';
-                responseContainer.style.display = 'none';
                 
                 try {
                     const response = await fetch('/add_data', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ data: documents })
+                        body: JSON.stringify({ data: documents }),
                     });
                     
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        alert(data.message);
-                        document.getElementById('documents').value = '';
-                    } else {
-                        alert(`Error: ${data.detail}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to add documents');
                     }
+                    
+                    const result = await response.json();
+                    alert(result.message);
+                    document.getElementById('documents').value = '';
                 } catch (error) {
-                    alert(`Error: ${error.message}`);
+                    alert('Error: ' + error.message);
+                } finally {
+                    loading.style.display = 'none';
+                }
+            });
+
+            uploadPdfForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const pdfFile = document.getElementById('pdf-file').files[0];
+                if (!pdfFile) {
+                    alert('Please select a PDF file');
+                    return;
+                }
+                
+                if (!pdfFile.type.includes('pdf')) {
+                    alert('Please select a valid PDF file');
+                    return;
+                }
+                
+                loading.style.display = 'block';
+                uploadStatus.style.display = 'none';
+                
+                const formData = new FormData();
+                formData.append('file', pdfFile);
+                
+                try {
+                    const response = await fetch('/upload-pdf', {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to upload PDF');
+                    }
+                    
+                    const result = await response.json();
+                    uploadStatus.textContent = `${result.message} (${result.chunks_added} chunks added)`;
+                    uploadStatus.className = 'upload-status success';
+                    uploadStatus.style.display = 'block';
+                    document.getElementById('pdf-file').value = '';
+                } catch (error) {
+                    uploadStatus.textContent = 'Error: ' + error.message;
+                    uploadStatus.className = 'upload-status error';
+                    uploadStatus.style.display = 'block';
                 } finally {
                     loading.style.display = 'none';
                 }
@@ -138,7 +212,7 @@
                 const question = document.getElementById('question').value;
                 const numResults = document.getElementById('num-results').value;
                 
-                if (!question.trim()) {
+                if (!question) {
                     alert('Please enter a question');
                     return;
                 }
@@ -150,33 +224,33 @@
                     const response = await fetch('/ask', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ 
-                            question,
-                            num_results: parseInt(numResults)
-                        })
+                        body: JSON.stringify({
+                            question: question,
+                            num_results: parseInt(numResults),
+                        }),
                     });
                     
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        answerElement.textContent = data.answer;
-                        
-                        contextElement.innerHTML = '';
-                        data.context.forEach(context => {
-                            const contextItem = document.createElement('div');
-                            contextItem.className = 'context-item';
-                            contextItem.textContent = context;
-                            contextElement.appendChild(contextItem);
-                        });
-                        
-                        responseContainer.style.display = 'block';
-                    } else {
-                        alert(`Error: ${data.detail}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to get answer');
                     }
+                    
+                    const result = await response.json();
+                    
+                    answerElement.textContent = result.answer;
+                    
+                    contextElement.innerHTML = '';
+                    result.context.forEach(context => {
+                        const div = document.createElement('div');
+                        div.className = 'context-item';
+                        div.textContent = context;
+                        contextElement.appendChild(div);
+                    });
+                    
+                    responseContainer.style.display = 'block';
                 } catch (error) {
-                    alert(`Error: ${error.message}`);
+                    alert('Error: ' + error.message);
                 } finally {
                     loading.style.display = 'none';
                 }

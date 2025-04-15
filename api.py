@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -12,6 +12,7 @@ from data_models.schemas import DataInput, QuestionInput, Response
 from embeddings.sentence_transformer_embeddings import SentenceTransformerEmbedding
 from llm.ollama_llm import OllamaLLM
 from vector_db.chroma_db import ChromaDb
+from utils.pdf_processor import extract_text_from_pdf
 
 
 def load_data(file_path: str) -> List[str]:
@@ -99,6 +100,41 @@ async def ask_question(question_input: QuestionInput):
         return Response(answer=response, context=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    """Upload a PDF file and add its contents to the vector database.
+
+    Args:
+        file (UploadFile): The PDF file to upload
+
+    Returns:
+        dict: Status message and number of chunks added
+    """
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+    
+    try:
+        # Read the PDF file
+        pdf_content = await file.read()
+        
+        # Extract text from PDF
+        text_chunks = extract_text_from_pdf(pdf_content)
+        
+        if not text_chunks:
+            raise HTTPException(status_code=400, detail="No text could be extracted from the PDF")
+        
+        # Add chunks to vector database
+        app.state.vector_db.add_records(text_chunks)
+        
+        return {
+            "message": "PDF processed successfully",
+            "chunks_added": len(text_chunks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 
 if __name__ == "__main__":
