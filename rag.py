@@ -1,35 +1,66 @@
 """RAG using ChromaDB and Ollama"""
 
+import os
+from typing import List
+
 from embeddings.base_embedding import EmbeddingModel
 from embeddings.sentence_transformer_embeddings import SentenceTransformerEmbedding
 from llm.ollama_llm import OllamaLLM
 from vector_db.chroma_db import ChromaDb
 
-# embedding model
-embedding_model: EmbeddingModel = SentenceTransformerEmbedding()
 
-# chroma db
-vector_db = ChromaDb("first_collection", embedding_model)
+def load_data(file_path: str) -> List[str]:
+    """Load data from a text file
 
-# llm
-llm = OllamaLLM()
+    Args:
+        file_path (str): Path to the text file
 
-# add records
-data = [
-    "India is a country in Asia",
-    "It has 28 states and 7 union territories",
-    "Delhi is the capital of India",
-    "Mumbai is the financial capital of India",
-    "Kolkata is the cultural capital of India",
-    "Chennai is the industrial capital of India",
-    "Hyderabad is the technology capital of India",
-]
+    Returns:
+        List[str]: List of lines from the file
+    """
+    with open(file_path, "r") as f:
+        return [line.strip() for line in f.readlines() if line.strip()]
 
-vector_db.add_records(data)
 
-query = "List the various capitals of India?"
+def load_questions(file_path: str) -> List[str]:
+    """Load questions from a text file
 
-results = vector_db.query_records(query, 10)["documents"][0]
+    Args:
+        file_path (str): Path to the text file
 
-response = llm.generate_response(query, results)
-print(response)
+    Returns:
+        List[str]: List of questions
+    """
+    return load_data(file_path)
+
+
+def main():
+    # Create data directory if it doesn't exist
+    os.makedirs("data", exist_ok=True)
+
+    # Load Star Wars data
+    data = load_data("data/star_wars.txt")
+    questions = load_questions("data/star_wars_questions.txt")
+
+    # embedding model
+    embedding_model: EmbeddingModel = SentenceTransformerEmbedding()
+
+    # chroma db
+    vector_db = ChromaDb("star_wars_collection", embedding_model)
+
+    # llm
+    llm = OllamaLLM()
+
+    # add records
+    vector_db.add_records(data)
+
+    # Ask questions
+    for i, question in enumerate(questions[:5], 1):  # Just test with first 5 questions
+        print(f"\nQuestion {i}: {question}")
+        results = vector_db.query_records(question, 5)["documents"][0]
+        response = llm.generate_response(question, results)
+        print(f"Answer: {response}")
+
+
+if __name__ == "__main__":
+    main()
