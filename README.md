@@ -12,10 +12,12 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
 ## Features
 
 - **Vector Database**: Uses ChromaDB for efficient document storage and retrieval
+- **Persistent Storage**: Database is saved to disk and persists between restarts
+- **Pre-populated Data**: Comes with Star Wars information ready to query
 - **Embedding Model**: Uses Sentence Transformers for creating embeddings
 - **LLM Integration**: Uses Ollama for local LLM inference (chosen for its quantized models on macOS)
 - **Modular Design**: Easy to swap components (e.g., different LLMs, embedding models)
-- **Example Dataset**: Includes Star Wars information and questions
+- **REST API**: FastAPI implementation for easy integration
 
 ## Requirements
 
@@ -51,6 +53,8 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
 
 ## Usage
 
+### Command Line Interface
+
 1. Run the example with Star Wars data:
    ```bash
    python rag.py
@@ -61,32 +65,65 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
    - Create a text file with your questions
    - Update the file paths in `rag.py`
 
+### REST API
+
+1. Start the API server:
+   ```bash
+   python api.py
+   ```
+
+2. Access the API documentation at `http://localhost:8000/docs`
+
+3. API Endpoints:
+   - `POST /data`: Add documents to the vector database
+   - `POST /question`: Ask a question and get a response
+
+4. Example API usage:
+   ```bash
+   # Add documents
+   curl -X POST "http://localhost:8000/data" \
+        -H "Content-Type: application/json" \
+        -d '{"documents": ["Star Wars is a space opera franchise.", "Luke Skywalker is the main character."]}'
+   
+   # Ask a question
+   curl -X POST "http://localhost:8000/question" \
+        -H "Content-Type: application/json" \
+        -d '{"question": "Who is the main character in Star Wars?", "num_results": 5}'
+   ```
+
+5. Pre-populated Data:
+   - The API automatically loads Star Wars data from `data/star_wars.txt` on startup
+   - The data is stored in a persistent database in the `chroma_db` directory
+   - You can add more data using the `/data` endpoint
+
 ## Project Structure
 
 ```
 rag/
-├── data/                      # Data files
-│   ├── star_wars.txt          # Star Wars information
+├── api.py                      # FastAPI implementation
+├── chroma_db/                  # Persistent ChromaDB storage
+├── data/                       # Data files
+│   ├── star_wars.txt           # Star Wars information
 │   └── star_wars_questions.txt # Questions about Star Wars
-├── embeddings/                # Embedding models
+├── embeddings/                 # Embedding models
 │   ├── __init__.py
-│   ├── base_embedding.py      # Base class for embeddings
+│   ├── base_embedding.py       # Base class for embeddings
 │   └── sentence_transformer_embeddings.py  # Sentence Transformer implementation
-├── llm/                       # Language models
+├── llm/                        # Language models
 │   ├── __init__.py
-│   ├── base_llm.py            # Base class for LLMs
-│   ├── huggingface_llm.py     # HuggingFace implementation
-│   └── ollama_llm.py          # Ollama implementation
-├── vector_db/                 # Vector databases
+│   ├── base_llm.py             # Base class for LLMs
+│   ├── huggingface_llm.py      # HuggingFace implementation
+│   └── ollama_llm.py           # Ollama implementation
+├── vector_db/                  # Vector databases
 │   ├── __init__.py
-│   └── chroma_db.py           # ChromaDB implementation
-├── .flake8                    # Flake8 configuration
-├── .gitignore                 # Git ignore file
-├── lint.sh                    # Linting script
-├── mypy.ini                   # MyPy configuration
-├── pyproject.toml             # Black and isort configuration
-├── rag.py                     # Main script
-└── requirements.txt           # Dependencies
+│   └── chroma_db.py            # ChromaDB implementation
+├── .flake8                     # Flake8 configuration
+├── .gitignore                  # Git ignore file
+├── lint.sh                     # Linting script
+├── mypy.ini                    # MyPy configuration
+├── pyproject.toml              # Black and isort configuration
+├── rag.py                      # Main script
+└── requirements.txt            # Dependencies
 ```
 
 ## Why Ollama?
@@ -124,4 +161,5 @@ MIT
 
 - [ChromaDB](https://github.com/chroma-core/chroma)
 - [Sentence Transformers](https://github.com/UKPLab/sentence-transformers)
-- [Ollama](https://ollama.ai/) 
+- [Ollama](https://ollama.ai/)
+- [FastAPI](https://fastapi.tiangolo.com/) 
