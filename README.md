@@ -30,7 +30,7 @@ This project implements a Retrieval-Augmented Generation (RAG) system that:
 
 1. Clone the repository:
    ```bash
-   git clone <insert github link>
+   git clone https://github.com/HOD101s/RAG.git
    cd rag
    ```
 
