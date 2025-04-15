@@ -1,6 +1,7 @@
 """Schemas for the RAG system"""
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -17,10 +18,7 @@ class QuestionInput(BaseModel):
 
     question: str = Field(..., description="The question to ask the RAG system")
     num_results: int = Field(
-        default=3,
-        description="Number of results to return",
-        ge=1,
-        le=20
+        default=3, description="Number of results to return", ge=1, le=20
     )
 
 
