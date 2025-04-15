@@ -1,0 +1,14 @@
+chromadb>=0.4.22
+torch>=2.2.0
+transformers>=4.37.0
+accelerate>=0.27.0
+sentencepiece>=0.1.99
+protobuf>=4.25.1
+bitsandbytes==0.42.0
+requests>=2.31.0
+
+# Linting
+black>=24.1.1
+flake8>=7.0.0
+isort>=5.13.2
+pylint>=3.0.3
